@@ -3,5 +3,4 @@
 __pycache__/
 .cache/
 data/raw/
-data/processed/
 reports/
