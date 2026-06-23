@@ -1,6 +1,11 @@
 .env
 .venv/
-__pycache__/
 .cache/
-data/raw/
+__pycache__/
+*.pyc
+
+data/
 reports/
+*.joblib
+
+.ipynb_checkpoints/
