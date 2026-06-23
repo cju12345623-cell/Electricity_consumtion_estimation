@@ -1,13 +1,11 @@
-# Electricity Consumption Estimation
+﻿# Electricity Consumption Estimation
 
-## 1. Project Overview
+Electricity load forecasting project using ENTSO-E electricity load data, Open-Meteo weather data, baseline machine learning models, and a FastAPI + JavaScript dashboard.
 
-This project builds an electricity load forecasting workflow using ENTSO-E electricity load data and Open-Meteo weather data.
+The project has two main parts:
 
-The main workflow is written for Jupyter Notebook:
-
-- `build_dataset_notebook.ipynb`: collects and prepares the dataset
-- `train_baselines_notebook.ipynb`: trains baseline forecasting models and evaluates performance
+- Data and model workflow in Jupyter notebooks
+- Web dashboard for uploading raw CSV data, selecting a time period, and comparing actual load with model predictions
 
 The forecasting target is:
 
@@ -15,21 +13,238 @@ The forecasting target is:
 load_mw
 ```
 
-This represents actual electricity load in MW.
-
-The default ENTSO-E bidding zone is:
+Default ENTSO-E bidding zone:
 
 ```text
 DE_LU
 ```
 
-This corresponds to Germany/Luxembourg.
+---
+
+## 1. Main Features
+
+- Build an hourly electricity load dataset from ENTSO-E and Open-Meteo data
+- Train baseline forecasting models
+- Save trained models into a reusable `joblib` bundle
+- Run a Python FastAPI backend
+- Upload raw CSV data from the web dashboard
+- Select a start and end datetime
+- Display actual load and model predictions on a chart
+- Compare model performance with MAE, RMSE, and MAPE
+- Compare ENTSO-E forecast against the trained ML models
 
 ---
 
-## 2. Data Used
+## 2. Project Structure
 
-This project uses three main datasets.
+```text
+Electricity_consumtion_estimation/
+|-- app.py
+|-- run_backend.ps1
+|-- test_backend.py
+|-- requirements.txt
+|-- README.md
+|-- .env.example
+|-- .gitignore
+|
+|-- frontend/
+|   |-- index.html
+|   |-- styles.css
+|   |-- app.js
+|
+|-- data/
+|   |-- raw/
+|   |   |-- entsoe_load.csv
+|   |   |-- open_meteo_weather.csv
+|   |
+|   |-- processed/
+|       |-- power_load_dataset.csv
+|
+|-- reports/
+|   |-- dataset_profile.json
+|   |-- baseline_metrics.json
+|   |-- web_model_bundle.joblib
+|   |
+|   |-- plots/
+|       |-- baseline_predictions.png
+|
+|-- build_dataset.py
+|-- train_baselines.py
+|-- build_dataset_notebook.ipynb
+|-- train_baselines_notebook.ipynb
+```
+
+---
+
+## 3. File Descriptions
+
+### Backend And Dashboard Files
+
+| File | Description |
+| --- | --- |
+| `app.py` | Main FastAPI backend. Serves the dashboard, receives CSV uploads, filters by selected period, loads trained models, runs predictions, and returns JSON results. |
+| `run_backend.ps1` | PowerShell helper script for starting the FastAPI server on `http://127.0.0.1:8000/`. |
+| `test_backend.py` | Local test script that checks whether the backend prediction logic works without opening the browser. |
+| `frontend/index.html` | Dashboard page structure. Contains the upload form, date inputs, metric cards, chart area, summary section, and result table. |
+| `frontend/styles.css` | Dashboard styling and responsive layout. Controls cards, chart section, table, colors, spacing, and mobile behavior. |
+| `frontend/app.js` | Frontend JavaScript. Sends CSV and date range to `/predict`, receives model predictions, draws the chart, renders the table, and calculates summary metrics. |
+
+### Data And Model Workflow Files
+
+| File | Description |
+| --- | --- |
+| `build_dataset_notebook.ipynb` | Notebook version of the dataset creation workflow. Downloads ENTSO-E and Open-Meteo data, merges them, and creates the processed dataset. |
+| `train_baselines_notebook.ipynb` | Notebook version of the model training workflow. Trains baseline models, evaluates them, and saves `reports/web_model_bundle.joblib` for the backend. |
+| `build_dataset.py` | Python script version of the dataset builder. Useful for command-line dataset generation. |
+| `train_baselines.py` | Python script version of the baseline model training process. |
+| `requirements.txt` | Python dependencies required for dataset building, model training, backend API, and dashboard execution. |
+| `.env.example` | Template for environment variables. The real `.env` file should contain the ENTSO-E API key and must not be committed. |
+| `.gitignore` | Defines files and folders that should not be committed to GitHub. |
+
+### Generated Files
+
+| File or Folder | Description |
+| --- | --- |
+| `data/raw/` | Raw downloaded data from ENTSO-E and Open-Meteo. Usually excluded from Git. |
+| `data/processed/power_load_dataset.csv` | Final processed dataset used for model training and dashboard testing. |
+| `reports/dataset_profile.json` | Dataset summary generated during training. |
+| `reports/baseline_metrics.json` | Model evaluation metrics generated during training. |
+| `reports/plots/baseline_predictions.png` | Plot comparing actual load and model predictions. |
+| `reports/web_model_bundle.joblib` | Saved trained model bundle used by the FastAPI backend. Usually excluded from Git because it is generated and large. |
+
+---
+
+## 4. Dashboard Architecture
+
+The dashboard uses a simple frontend-backend structure.
+
+```text
+Browser Dashboard
+    |
+    | upload CSV + start/end datetime
+    v
+FastAPI Backend /predict
+    |
+    | load web_model_bundle.joblib
+    | run RandomForest, HistGradientBoosting, XGBoost predictions
+    v
+JSON response
+    |
+    v
+Dashboard chart + summary + table
+```
+
+Frontend:
+
+```text
+HTML + CSS + JavaScript
+```
+
+Backend:
+
+```text
+Python + FastAPI + scikit-learn/XGBoost/LightGBM
+```
+
+---
+
+## 5. How To Run The Dashboard
+
+### 1. Move To The Project Folder
+
+```powershell
+cd C:\Users\jaeug.choi\Downloads\Personal\vibecoding\estimate_Electricity
+```
+
+### 2. Install Dependencies
+
+If the virtual environment already exists:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+If starting from a fresh clone:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+### 3. Make Sure The Model Bundle Exists
+
+The dashboard backend needs this file:
+
+```text
+reports/web_model_bundle.joblib
+```
+
+If it does not exist, run `train_baselines_notebook.ipynb` from top to bottom.
+
+### 4. Start The Backend Server
+
+Recommended direct command:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app:app --host 127.0.0.1 --port 8000
+```
+
+Or use the helper script if PowerShell script execution is enabled:
+
+```powershell
+.\run_backend.ps1
+```
+
+### 5. Open The Dashboard
+
+```text
+http://127.0.0.1:8000/
+```
+
+Health check endpoint:
+
+```text
+http://127.0.0.1:8000/health
+```
+
+Prediction endpoint used by the frontend:
+
+```text
+http://127.0.0.1:8000/predict
+```
+
+---
+
+## 6. Dashboard Usage
+
+1. Open `http://127.0.0.1:8000/`
+2. Upload the raw/processed CSV file
+3. Select a start datetime
+4. Select an end datetime
+5. Click the prediction button
+6. Review:
+   - actual load
+   - ENTSO-E forecast, if available
+   - RandomForest prediction
+   - HistGradientBoosting prediction
+   - XGBoost prediction
+   - model summary metrics
+   - prediction result table
+
+The dashboard calculates summary metrics for the selected period:
+
+| Metric | Meaning |
+| --- | --- |
+| Average Prediction | Average predicted load for the selected period |
+| MAE | Mean absolute error against actual load |
+| RMSE | Root mean squared error against actual load |
+| MAPE | Mean absolute percentage error against actual load |
+
+The dashboard also highlights the model with the best MAE and compares it with the ENTSO-E forecast when `load_forecast_mw` exists in the uploaded CSV.
+
+---
+
+## 7. Data Used
 
 ### ENTSO-E Load Data
 
@@ -43,11 +258,9 @@ Main columns:
 
 | Column | Description |
 | --- | --- |
-| timestamp | Timestamp of the load observation |
-| load_mw | Actual electricity load in MW |
-| load_forecast_mw | ENTSO-E day-ahead load forecast |
-
-The raw ENTSO-E load data is collected at 15-minute intervals.
+| `timestamp` | Timestamp of the load observation |
+| `load_mw` | Actual electricity load in MW |
+| `load_forecast_mw` | ENTSO-E day-ahead load forecast |
 
 ### Open-Meteo Weather Data
 
@@ -61,286 +274,63 @@ Main columns:
 
 | Column | Description |
 | --- | --- |
-| timestamp | Timestamp of the weather observation |
-| temperature_2m | Temperature at 2 meters |
-| relative_humidity_2m | Relative humidity at 2 meters |
-| wind_speed_10m | Wind speed at 10 meters |
+| `timestamp` | Timestamp of the weather observation |
+| `temperature_2m` | Temperature at 2 meters |
+| `relative_humidity_2m` | Relative humidity at 2 meters |
+| `wind_speed_10m` | Wind speed at 10 meters |
 
 ### Final Processed Dataset
-
-Tracked dataset:
 
 ```text
 data/processed/power_load_dataset.csv
 ```
 
-This is the final machine learning dataset. It combines:
+This dataset combines:
 
 - hourly electricity load
 - day-ahead load forecast
 - weather features
 - calendar features
-- lag and rolling load features
-
-The raw 15-minute ENTSO-E values are resampled into hourly averages.
-
-Example:
-
-```text
-hourly load = mean of four 15-minute load values
-```
+- holiday feature
+- lag features
+- rolling mean features
 
 ---
 
-## 3. How To Run, Jupyter Notebook Workflow
-
-### 1. Clone The Repository
-
-```bash
-git clone https://github.com/cju12345623-cell/Electricity_consumtion_estimation.git
-cd Electricity_consumtion_estimation
-```
-
-### 2. Create Environment
-
-```bash
-python -m venv .venv
-```
-
-Windows PowerShell:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Add ENTSO-E API Key
-
-Create a `.env` file in the project root.
-
-```env
-ENTSOE_API_KEY=your_entsoe_api_key_here
-```
-
-Do not commit `.env` to GitHub.
-
-### 4. Open Jupyter Notebook
-
-```bash
-jupyter notebook
-```
-
-Run the notebooks in this order:
-
-```text
-1. build_dataset_notebook.ipynb
-2. train_baselines_notebook.ipynb
-```
-
----
-
-## 4. Dataset Builder Notebook
-
-Notebook:
-
-```text
-build_dataset_notebook.ipynb
-```
-
-This notebook performs the dataset preparation process.
-
-Main steps:
-
-1. Load Python libraries
-2. Read `ENTSOE_API_KEY` from `.env`
-3. Set country code, date range, timezone, and weather location
-4. Download actual load data from ENTSO-E
-5. Download day-ahead load forecast data from ENTSO-E
-6. Download weather data from Open-Meteo
-7. Save raw datasets under `data/raw/`
-8. Resample 15-minute load data into hourly averages
-9. Merge electricity load data with weather data
-10. Add calendar, holiday, lag, and rolling features
-11. Save the final dataset to `data/processed/power_load_dataset.csv`
-
-Important settings inside the notebook:
-
-```python
-COUNTRY_CODE = "DE_LU"
-START_DATE = "2023-01-01"
-END_DATE = "2023-10-31"
-TIMEZONE = "Europe/Berlin"
-LATITUDE = 52.52
-LONGITUDE = 13.41
-```
-
-Key output:
-
-```text
-data/processed/power_load_dataset.csv
-```
-
----
-
-## 5. Model Training Notebook
-
-Notebook:
-
-```text
-train_baselines_notebook.ipynb
-```
-
-This notebook trains and evaluates baseline forecasting models.
-
-Main steps:
-
-1. Load `data/processed/power_load_dataset.csv`
-2. Parse `timestamp`
-3. Set `load_mw` as the prediction target
-4. Check missing values
-5. Check time interval consistency
-6. Add extra time and lag features
-7. Split data chronologically into train, validation, and test sets
-8. Train baseline models
-9. Calculate metrics
-10. Save metrics and prediction plot
-
-Main settings inside the notebook:
-
-```python
-CSV_PATH = PROJECT_ROOT / "data" / "processed" / "power_load_dataset.csv"
-TARGET = "load_mw"
-TIME_COL = "timestamp"
-```
-
-The dataset is split by time order:
-
-| Split | Ratio |
-| --- | --- |
-| Train | 70% |
-| Validation | 15% |
-| Test | 15% |
-
-The data is not randomly shuffled because this is a time-series forecasting problem.
-
----
-
-## 6. Models Used
-
-The notebook trains four baseline models.
+## 8. Models Used
 
 | Model | Library | Description |
 | --- | --- | --- |
 | RandomForestRegressor | scikit-learn | Tree ensemble baseline model |
 | HistGradientBoostingRegressor | scikit-learn | Gradient boosting model from scikit-learn |
-| LightGBM | lightgbm | Fast gradient boosting model for tabular data |
+| LightGBM | lightgbm | Optional fast gradient boosting model for tabular data |
 | XGBoost | xgboost | Gradient boosting model commonly used for structured data |
 
-The models are trained with median imputation for missing feature values.
-
-Main evaluation metrics:
-
-| Metric | Meaning |
-| --- | --- |
-| MAE | Average absolute prediction error |
-| RMSE | Error metric that penalizes large mistakes more strongly |
-| MAPE | Average percentage error |
-| R2 | Explained variance score |
+The saved dashboard model bundle currently exposes the models that were successfully trained and saved in the notebook.
 
 ---
 
-## 7. Result Summary
+## 9. GitHub Upload Notes
 
-The best baseline model on the test set was:
-
-```text
-HistGradientBoostingRegressor
-```
-
-Test performance:
-
-| Model | MAE | RMSE | MAPE | R2 |
-| --- | ---: | ---: | ---: | ---: |
-| HistGradientBoosting | 1374.72 | 1809.61 | 2.46% | 0.956 |
-| LightGBM | 1399.93 | 1827.64 | 2.50% | 0.955 |
-| XGBoost | 1608.03 | 2059.83 | 2.86% | 0.943 |
-| RandomForest | 1613.54 | 2000.59 | 2.86% | 0.946 |
-
-Generated report files:
-
-```text
-reports/dataset_profile.json
-reports/baseline_metrics.json
-reports/plots/baseline_predictions.png
-```
-
-Note:
-
-```text
-reports/
-```
-
-is excluded from Git because it is generated output.
-
----
-
-## 8. Folder Structure
-
-```text
-Electricity_consumtion_estimation/
-├── build_dataset_notebook.ipynb
-├── train_baselines_notebook.ipynb
-├── build_dataset.py
-├── train_baselines.py
-├── requirements.txt
-├── README.md
-├── .env.example
-├── .gitignore
-├── data/
-│   ├── processed/
-│   │   └── power_load_dataset.csv
-│   └── raw/
-│       ├── entsoe_load.csv
-│       └── open_meteo_weather.csv
-└── reports/
-    ├── dataset_profile.json
-    ├── baseline_metrics.json
-    └── plots/
-        └── baseline_predictions.png
-```
-
-Tracked in Git:
-
-```text
-build_dataset_notebook.ipynb
-train_baselines_notebook.ipynb
-build_dataset.py
-train_baselines.py
-requirements.txt
-README.md
-.env.example
-.gitignore
-data/processed/power_load_dataset.csv
-```
-
-Excluded from Git:
+Do not commit private or generated files such as:
 
 ```text
 .env
 .venv/
 .cache/
+__pycache__/
 data/raw/
 reports/
+*.joblib
 ```
+
+The `.env` file may contain the ENTSO-E API key and must stay private.
+
+The model bundle `reports/web_model_bundle.joblib` is generated by the notebook and can be recreated, so it is usually better to exclude it from GitHub.
 
 ---
 
-## 9. Security Notes, `.env` And API Key
+## 10. Security Notes
 
 The ENTSO-E API key should be stored only in `.env`.
 
@@ -350,13 +340,7 @@ Example:
 ENTSOE_API_KEY=your_entsoe_api_key_here
 ```
 
-The `.env` file is excluded by `.gitignore`.
-
-Only this template file should be committed:
-
-```text
-.env.example
-```
+Only `.env.example` should be committed.
 
 Do not write the real API key directly inside:
 
